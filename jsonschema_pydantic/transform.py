@@ -29,7 +29,7 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
             type_ = prop["type"]
 
             if type_ == "array":
-                return List[convert_type(prop.get("items", {}))]
+                return List[convert_type(prop.get("items", {}))]  # noqa F821
             elif type_ == "object":
                 if "properties" in prop:
                     properties = {}
@@ -50,7 +50,7 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
 
         elif "anyOf" in prop:
             unioned_types = tuple(convert_type(sub_schema) for sub_schema in prop["anyOf"])
-            return Union[unioned_types]
+            return Union[unioned_types]  # type: ignore
 
         else:
             raise ValueError(f"Unsupported schema: {prop}")
