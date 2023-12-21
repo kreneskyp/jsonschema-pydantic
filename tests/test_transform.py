@@ -184,3 +184,34 @@ class TestArrays:
             "title": "DynamicModel",
             "type": "object",
         }
+
+    def test_array_of_any(self):
+        schema = {
+            "display_groups": None,
+            "properties": {
+                "tags": {
+                    "items": {},
+                    "maxItems": None,
+                    "minItems": None,
+                    "style": {"width": "100%"},
+                    "type": "array",
+                    "uniqueItems": False,
+                },
+            },
+            "required": [],
+            "type": "object",
+        }
+
+        model = jsonschema_to_pydantic(schema)
+
+        instance = model(tags=["test"])
+        assert instance.tags == ["test"]
+        instance = model(tags=[1])
+        assert instance.tags == [1.0]
+        instance = model(tags=[{"test": 1}])
+        assert instance.tags == [{"test": 1}]
+
+        instance = model(tags=None)
+        assert instance.tags is None
+        instance = model()
+        assert instance.tags is None
