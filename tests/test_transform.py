@@ -126,3 +126,61 @@ class TestTransform:
         # Pydantic is unable to convert the model back to a schema even though it seems right
         # the other tests show the model is working as expected
         # assert model.schema() == schema
+
+
+class TestArrays:
+    def test_array(self):
+        """Test an array with many types"""
+
+        schema = {
+            "display_groups": None,
+            "properties": {
+                "tags": {
+                    "items": {
+                        "anyOf": [
+                            {"type": "integer"},
+                            {"type": "number"},
+                            {"type": "boolean"},
+                            {"type": "string"},
+                            {"type": "object"},
+                        ]
+                    },
+                    "maxItems": None,
+                    "minItems": None,
+                    "style": {"width": "100%"},
+                    "type": "array",
+                    "uniqueItems": False,
+                },
+            },
+            "required": [],
+            "type": "object",
+        }
+
+        model = jsonschema_to_pydantic(schema)
+
+        instance = model(tags=["test"])
+        assert instance.tags == ["test"]
+        instance = model(tags=[1])
+        assert instance.tags == [1.0]
+        instance = model(tags=[{"test": 1}])
+        assert instance.tags == [{"test": 1}]
+
+        assert model.schema() == {
+            "properties": {
+                "tags": {
+                    "items": {
+                        "anyOf": [
+                            {"type": "integer"},
+                            {"type": "number"},
+                            {"type": "boolean"},
+                            {"type": "string"},
+                            {"type": "object"},
+                        ],
+                    },
+                    "title": "Tags",
+                    "type": "array",
+                },
+            },
+            "title": "DynamicModel",
+            "type": "object",
+        }

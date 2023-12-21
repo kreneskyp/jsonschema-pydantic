@@ -60,11 +60,14 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
 
     for name, prop in schema.get("properties", {}).items():
         pydantic_type = convert_type(prop)
-        if name not in required_fields:
-            pydantic_type = Optional[pydantic_type]
         field_kwargs = {}
         if "default" in prop:
             field_kwargs["default"] = prop["default"]
+        if name not in required_fields:
+            pydantic_type = Optional[pydantic_type]
+            if "default" not in field_kwargs:
+                field_kwargs["default"] = None
+
         fields[name] = (pydantic_type, Field(**field_kwargs))
 
     return create_model(title, **fields)
