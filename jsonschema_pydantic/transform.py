@@ -51,7 +51,7 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
         elif "anyOf" in prop:
             unioned_types = tuple(convert_type(sub_schema) for sub_schema in prop["anyOf"])
             return Union[unioned_types]  # type: ignore
-        elif prop == {}:
+        elif prop == {} or "type" not in prop:
             return Any
         else:
             raise ValueError(f"Unsupported schema: {prop}")
