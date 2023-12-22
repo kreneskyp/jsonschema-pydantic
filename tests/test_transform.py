@@ -215,3 +215,42 @@ class TestArrays:
         assert instance.tags is None
         instance = model()
         assert instance.tags is None
+
+    def test_any_type(self):
+        """Property with no type is converted to Any"""
+        schema = {
+            "display_groups": None,
+            "properties": {
+                "value": {"label": "Value", "default": "output"},
+            },
+            "required": [],
+            "type": "object",
+        }
+
+        model = jsonschema_to_pydantic(schema)
+
+        instance = model(value=["test"])
+        assert instance.value == ["test"]
+        instance = model(value=[1])
+        assert instance.value == [1.0]
+        instance = model(value=[{"test": 1}])
+        assert instance.value == [{"test": 1}]
+        instance = model(value="test")
+        assert instance.value == "test"
+        instance = model(value=None)
+        assert instance.value is None
+        instance = model()
+        assert instance.value == "output"
+
+        # no default
+        schema = {
+            "display_groups": None,
+            "properties": {
+                "value": {"label": "Value"},
+            },
+            "required": [],
+            "type": "object",
+        }
+        model = jsonschema_to_pydantic(schema)
+        instance = model()
+        assert instance.value is None
