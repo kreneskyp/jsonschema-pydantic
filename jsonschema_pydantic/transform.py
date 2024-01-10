@@ -24,6 +24,7 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
                 "boolean": bool,
                 "array": List,
                 "object": Dict[str, Any],
+                "null": None,
             }
 
             type_ = prop["type"]
