@@ -254,3 +254,60 @@ class TestArrays:
         model = jsonschema_to_pydantic(schema)
         instance = model()
         assert instance.value is None
+
+
+"""
+unioned_types [{'type': 'string'}, {'type': 'null'}]
+unioned_types (<class 'str'>, typing.Any)
+"""
+
+
+class TestUnions:
+    def test_union(self):
+        schema = {
+            "type": "object",
+            "properties": {
+                "search": {
+                    "anyOf": [{"type": "string"}, {"type": "null"}],
+                    "title": "Search",
+                },
+            },
+            "required": [],
+        }
+        model = jsonschema_to_pydantic(schema)
+
+        instance = model(search="test")
+        assert instance.search == "test"
+        instance = model(search=None)
+        assert instance.search is None
+        instance = model()
+        assert instance.search is None
+
+    def test_nested_union(self):
+        """Test union in a nested object to validate more complex nested
+        schemas are possible
+        """
+        schema = {
+            "type": "object",
+            "properties": {
+                "query_args": {
+                    "type": "object",
+                    "properties": {
+                        "search": {
+                            "anyOf": [{"type": "string"}, {"type": "null"}],
+                            "title": "Search",
+                        },
+                    },
+                    "required": [],
+                }
+            },
+            "required": [],
+        }
+        model = jsonschema_to_pydantic(schema)
+
+        instance = model(query_args={"search": "test"})
+        assert instance.query_args.search == "test"
+        instance = model(query_args={"search": None})
+        assert instance.query_args.search is None
+        instance = model()
+        assert instance.query_args is None

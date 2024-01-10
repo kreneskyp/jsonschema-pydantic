@@ -24,6 +24,7 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
                 "boolean": bool,
                 "array": List,
                 "object": Dict[str, Any],
+                "null": None,
             }
 
             type_ = prop["type"]
@@ -32,10 +33,7 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
                 return List[convert_type(prop.get("items", {}))]  # noqa F821
             elif type_ == "object":
                 if "properties" in prop:
-                    properties = {}
-                    for name, sub_prop in prop["properties"].items():
-                        properties[name] = convert_type(sub_prop)
-                    return create_model("ObjectType", **properties)
+                    return jsonschema_to_pydantic(prop, definitions)
                 else:
                     return Dict[str, Any]
             else:
