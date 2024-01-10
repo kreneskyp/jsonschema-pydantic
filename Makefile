@@ -38,7 +38,7 @@ lint:             ## Run pep8, black, mypy linters.
 
 .PHONY: test
 test: lint        ## Run tests and generate coverage report.
-	$(ENV_PREFIX)pytest -vv --cov-config .coveragerc --cov=jsonschema_pydantic -l --tb=short --maxfail=1 tests/
+	$(ENV_PREFIX)pytest -vv --cov-config .coveragerc --cov=jsonschema_pydantic --cov-report term-missing -l --tb=short --maxfail=5 tests/
 	$(ENV_PREFIX)coverage xml
 	$(ENV_PREFIX)coverage html
 
