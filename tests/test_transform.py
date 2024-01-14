@@ -52,6 +52,8 @@ class UnionType(BaseModel):
 
 
 class TestTransform:
+    version = 2
+
     def test_string_type(self):
         schema = {
             "type": "object",
@@ -63,8 +65,40 @@ class TestTransform:
                 "boolean": {"type": "boolean", "title": "Boolean"},
             },
         }
-        model = jsonschema_to_pydantic(schema)
-        assert model.schema() == schema
+        model = jsonschema_to_pydantic(schema, version=self.version)
+
+        # since none of the fields are marked as required, the fields should be optional
+        if self.version == 1:
+            expected_schema = schema
+        elif self.version == 2:
+            expected_schema = {
+                "properties": {
+                    "boolean": {
+                        "anyOf": [{"type": "boolean"}, {"type": "null"}],
+                        "default": None,
+                        "title": "Boolean",
+                    },
+                    "integer": {
+                        "anyOf": [{"type": "integer"}, {"type": "null"}],
+                        "default": None,
+                        "title": "Integer",
+                    },
+                    "number": {
+                        "anyOf": [{"type": "number"}, {"type": "null"}],
+                        "default": None,
+                        "title": "Number",
+                    },
+                    "string": {
+                        "anyOf": [{"type": "string"}, {"type": "null"}],
+                        "default": None,
+                        "title": "String",
+                    },
+                },
+                "title": "PrimativeTypes",
+                "type": "object",
+            }
+
+        assert model.schema() == expected_schema
 
         # test initializing model
         instance = model(string="test", number=1.0, integer=1, boolean=True)
@@ -75,11 +109,42 @@ class TestTransform:
 
     def test_array_type(self):
         schema = ArrayType.schema()
-        model = jsonschema_to_pydantic(schema)
-        assert model.schema() == schema
+        model = jsonschema_to_pydantic(schema, version=self.version)
+
+        if self.version == 1:
+            expected_schema = {
+                "definitions": {
+                    "ObjectType": {
+                        "properties": {
+                            "age": {"title": "Age", "type": "integer"},
+                            "check": {"title": "Check", "type": "boolean"},
+                            "name": {"title": "Name", "type": "string"},
+                        },
+                        "required": ["name", "age", "check"],
+                        "title": "ObjectType",
+                        "type": "object",
+                    }
+                },
+                "properties": {
+                    "array": {
+                        "items": {"$ref": "#/definitions/ObjectType"},
+                        "title": "Array",
+                        "type": "array",
+                    },
+                    "name": {"title": "Name", "type": "string"},
+                },
+                "required": ["name", "array"],
+                "title": "ArrayType",
+                "type": "object",
+            }
+        elif self.version == 2:
+            expected_schema = schema
+
+        assert model.schema() == expected_schema
 
         # test initializing model
-        instance = model(name="test", array=[ObjectType(name="test", age=1, check=True)])
+        # array must be a dict since the model has a dynamic version of ObjectType
+        instance = model(name="test", array=[ObjectType(name="test", age=1, check=True).dict()])
         assert instance.name == "test"
         assert instance.array[0].name == "test"
         assert instance.array[0].age == 1
@@ -87,22 +152,46 @@ class TestTransform:
 
     def test_recursive_object_type(self):
         schema = NestedObjectType.schema()
-        model = jsonschema_to_pydantic(schema)
-        assert model.schema() == schema
+        model = jsonschema_to_pydantic(schema, version=self.version)
+
+        if self.version == 1:
+            expected_schema = {
+                "title": "NestedObjectType",
+                "type": "object",
+                "properties": {"child": {"$ref": "#/definitions/ObjectType"}},
+                "required": ["child"],
+                "definitions": {
+                    "ObjectType": {
+                        "title": "ObjectType",
+                        "type": "object",
+                        "properties": {
+                            "name": {"title": "Name", "type": "string"},
+                            "age": {"title": "Age", "type": "integer"},
+                            "check": {"title": "Check", "type": "boolean"},
+                        },
+                        "required": ["name", "age", "check"],
+                    }
+                },
+            }
+        elif self.version == 2:
+            expected_schema = schema
+
+        assert model.schema() == expected_schema
 
         # test initializing model
-        instance = model(child=ObjectType(name="test", age=1, check=True))
+        # child must be a dict since the model has a dynamic version of ObjectType
+        instance = model(child=ObjectType(name="test", age=1, check=True).dict())
         assert instance.child.name == "test"
         assert instance.child.age == 1
         assert instance.child.check is True
 
     def test_anyOf_type(self):
         schema = UnionType.schema()
-        print(schema)
-        model = jsonschema_to_pydantic(schema)
+        model = jsonschema_to_pydantic(schema, version=self.version)
 
         # test initializing model
-        instance = model(primitives="test", objects=ObjectDefaults())
+        # The ObjectDefaults must be a dict since the model has a dynamic version of ObjectType
+        instance = model(primitives="test", objects=ObjectDefaults().dict())
         assert instance.primitives == "test"
         assert instance.objects.name == "John"
         assert instance.objects.age == 21
@@ -113,7 +202,10 @@ class TestTransform:
         }
 
         # initialize with ObjectType
-        instance = model(primitives="test", objects=ObjectType(name="test", age=1, check=True))
+        # The ObjectType must be a dict since the model has a dynamic version of ObjectType
+        instance = model(
+            primitives="test", objects=ObjectType(name="test", age=1, check=True).dict()
+        )
         assert instance.primitives == "test"
         assert instance.objects.name == "test"
         assert instance.objects.age == 1
@@ -128,7 +220,13 @@ class TestTransform:
         # assert model.schema() == schema
 
 
+class TestTransformV1(TestTransform):
+    version = 1
+
+
 class TestArrays:
+    version = 2
+
     def test_array(self):
         """Test an array with many types"""
 
@@ -156,7 +254,7 @@ class TestArrays:
             "type": "object",
         }
 
-        model = jsonschema_to_pydantic(schema)
+        model = jsonschema_to_pydantic(schema, version=self.version)
 
         instance = model(tags=["test"])
         assert instance.tags == ["test"]
@@ -165,25 +263,53 @@ class TestArrays:
         instance = model(tags=[{"test": 1}])
         assert instance.tags == [{"test": 1}]
 
-        assert model.schema() == {
-            "properties": {
-                "tags": {
-                    "items": {
-                        "anyOf": [
-                            {"type": "integer"},
-                            {"type": "number"},
-                            {"type": "boolean"},
-                            {"type": "string"},
-                            {"type": "object"},
-                        ],
-                    },
-                    "title": "Tags",
-                    "type": "array",
+        if self.version == 1:
+            expected_schema = {
+                "title": "DynamicModel",
+                "type": "object",
+                "properties": {
+                    "tags": {
+                        "title": "Tags",
+                        "type": "array",
+                        "items": {
+                            "anyOf": [
+                                {"type": "integer"},
+                                {"type": "number"},
+                                {"type": "boolean"},
+                                {"type": "string"},
+                                {"type": "object"},
+                            ]
+                        },
+                    }
                 },
-            },
-            "title": "DynamicModel",
-            "type": "object",
-        }
+            }
+        elif self.version == 2:
+            expected_schema = {
+                "properties": {
+                    "tags": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "anyOf": [
+                                        {"type": "integer"},
+                                        {"type": "number"},
+                                        {"type": "boolean"},
+                                        {"type": "string"},
+                                        {"type": "object"},
+                                    ]
+                                },
+                                "type": "array",
+                            },
+                            {"type": "null"},
+                        ],
+                        "default": None,
+                        "title": "Tags",
+                    }
+                },
+                "title": "DynamicModel",
+                "type": "object",
+            }
+        assert model.schema() == expected_schema
 
     def test_array_of_any(self):
         schema = {
@@ -202,7 +328,7 @@ class TestArrays:
             "type": "object",
         }
 
-        model = jsonschema_to_pydantic(schema)
+        model = jsonschema_to_pydantic(schema, version=self.version)
 
         instance = model(tags=["test"])
         assert instance.tags == ["test"]
@@ -227,7 +353,7 @@ class TestArrays:
             "type": "object",
         }
 
-        model = jsonschema_to_pydantic(schema)
+        model = jsonschema_to_pydantic(schema, version=self.version)
 
         instance = model(value=["test"])
         assert instance.value == ["test"]
@@ -251,9 +377,13 @@ class TestArrays:
             "required": [],
             "type": "object",
         }
-        model = jsonschema_to_pydantic(schema)
+        model = jsonschema_to_pydantic(schema, version=self.version)
         instance = model()
         assert instance.value is None
+
+
+class TestArraysV1(TestArrays):
+    version = 1
 
 
 """
@@ -263,6 +393,8 @@ unioned_types (<class 'str'>, typing.Any)
 
 
 class TestUnions:
+    version = 2
+
     def test_union(self):
         schema = {
             "type": "object",
@@ -274,7 +406,7 @@ class TestUnions:
             },
             "required": [],
         }
-        model = jsonschema_to_pydantic(schema)
+        model = jsonschema_to_pydantic(schema, version=self.version)
 
         instance = model(search="test")
         assert instance.search == "test"
@@ -303,7 +435,7 @@ class TestUnions:
             },
             "required": [],
         }
-        model = jsonschema_to_pydantic(schema)
+        model = jsonschema_to_pydantic(schema, version=self.version)
 
         instance = model(query_args={"search": "test"})
         assert instance.query_args.search == "test"
@@ -311,3 +443,7 @@ class TestUnions:
         assert instance.query_args.search is None
         instance = model()
         assert instance.query_args is None
+
+
+class TestUnionsV1(TestUnions):
+    version = 1

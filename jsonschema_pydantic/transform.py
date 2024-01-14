@@ -1,20 +1,39 @@
 from typing import Any, Dict, List, Optional, Type, Union
 
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel as BaseModelV2
+from pydantic import Field as FieldV2
+from pydantic import create_model as create_model_v2
+from pydantic.v1 import BaseModel as BaseModelV1
+from pydantic.v1 import Field as FieldV1
+from pydantic.v1 import create_model as create_model_v1
 
 
-def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseModel]:
+def jsonschema_to_pydantic(
+    schema: dict, definitions: dict = None, version: int = 2
+) -> Type[BaseModelV2]:
+    if version == 1:
+        BaseModel, Field, create_model = BaseModelV1, FieldV1, create_model_v1
+    elif version == 2:
+        BaseModel, Field, create_model = BaseModelV2, FieldV2, create_model_v2
+    else:
+        raise ValueError(f"Unsupported version: {version}")
+
     title = schema.get("title", "DynamicModel")
 
     # top level schema provides definitions
     if definitions is None:
-        definitions = schema.get("definitions", {})
+        if "$defs" in schema:
+            definitions = schema["$defs"]
+        elif "definitions" in schema:
+            definitions = schema["definitions"]
+        else:
+            definitions = {}
 
     def convert_type(prop: dict) -> Any:
         if "$ref" in prop:
             ref_path = prop["$ref"].split("/")
             ref = definitions[ref_path[-1]]
-            return jsonschema_to_pydantic(ref, definitions)
+            return jsonschema_to_pydantic(ref, definitions, version=version)
 
         if "type" in prop:
             type_mapping = {
@@ -33,7 +52,7 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
                 return List[convert_type(prop.get("items", {}))]  # noqa F821
             elif type_ == "object":
                 if "properties" in prop:
-                    return jsonschema_to_pydantic(prop, definitions)
+                    return jsonschema_to_pydantic(prop, definitions, version=version)
                 else:
                     return Dict[str, Any]
             else:
@@ -42,7 +61,7 @@ def jsonschema_to_pydantic(schema: dict, definitions: dict = None) -> Type[BaseM
         elif "allOf" in prop:
             combined_fields = {}
             for sub_schema in prop["allOf"]:
-                model = jsonschema_to_pydantic(sub_schema, definitions)
+                model = jsonschema_to_pydantic(sub_schema, definitions, version=version)
                 combined_fields.update(model.__annotations__)
             return create_model("CombinedModel", **combined_fields)
 
