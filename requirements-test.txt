@@ -7,3 +7,4 @@ isort
 pytest-cov
 gitchangelog
 mkdocs
+pydantic>=2.5.3,<3.0.0
