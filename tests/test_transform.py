@@ -5,7 +5,9 @@ from jsonschema_pydantic.transform import jsonschema_to_pydantic
 
 
 class ObjectType(BaseModel):
-    name: str
+    """Basic object type"""
+
+    name: str = Field(description="mock str field")
     age: int
     check: bool
 
@@ -118,10 +120,15 @@ class TestTransform:
                         "properties": {
                             "age": {"title": "Age", "type": "integer"},
                             "check": {"title": "Check", "type": "boolean"},
-                            "name": {"title": "Name", "type": "string"},
+                            "name": {
+                                "title": "Name",
+                                "type": "string",
+                                "description": "mock str field",
+                            },
                         },
                         "required": ["name", "age", "check"],
                         "title": "ObjectType",
+                        "description": "Basic object type",
                         "type": "object",
                     }
                 },
@@ -164,8 +171,13 @@ class TestTransform:
                     "ObjectType": {
                         "title": "ObjectType",
                         "type": "object",
+                        "description": "Basic object type",
                         "properties": {
-                            "name": {"title": "Name", "type": "string"},
+                            "name": {
+                                "title": "Name",
+                                "type": "string",
+                                "description": "mock str field",
+                            },
                             "age": {"title": "Age", "type": "integer"},
                             "check": {"title": "Check", "type": "boolean"},
                         },

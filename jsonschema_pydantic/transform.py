@@ -12,13 +12,14 @@ def jsonschema_to_pydantic(
     schema: dict, definitions: dict = None, version: int = 2
 ) -> Type[BaseModelV2]:
     if version == 1:
-        BaseModel, Field, create_model = BaseModelV1, FieldV1, create_model_v1
+        BaseModel, Field, create_model = BaseModelV1, FieldV1, create_model_v1  # noqa: F841
     elif version == 2:
-        BaseModel, Field, create_model = BaseModelV2, FieldV2, create_model_v2
+        BaseModel, Field, create_model = BaseModelV2, FieldV2, create_model_v2  # noqa: F841
     else:
         raise ValueError(f"Unsupported version: {version}")
 
     title = schema.get("title", "DynamicModel")
+    description = schema.get("description", None)
 
     # top level schema provides definitions
     if definitions is None:
@@ -85,7 +86,12 @@ def jsonschema_to_pydantic(
             pydantic_type = Optional[pydantic_type]
             if "default" not in field_kwargs:
                 field_kwargs["default"] = None
+        if "description" in prop:
+            field_kwargs["description"] = prop["description"]
 
         fields[name] = (pydantic_type, Field(**field_kwargs))
 
-    return create_model(title, **fields)
+    model = create_model(title, **fields)
+    if description:
+        model.__doc__ = description
+    return model
