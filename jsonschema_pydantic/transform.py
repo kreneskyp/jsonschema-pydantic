@@ -12,9 +12,9 @@ def jsonschema_to_pydantic(
     schema: dict, definitions: dict = None, version: int = 2
 ) -> Type[BaseModelV2]:
     if version == 1:
-        BaseModel, Field, create_model = BaseModelV1, FieldV1, create_model_v1
+        BaseModel, Field, create_model = BaseModelV1, FieldV1, create_model_v1  # noqa: F841
     elif version == 2:
-        BaseModel, Field, create_model = BaseModelV2, FieldV2, create_model_v2
+        BaseModel, Field, create_model = BaseModelV2, FieldV2, create_model_v2  # noqa: F841
     else:
         raise ValueError(f"Unsupported version: {version}")
 
